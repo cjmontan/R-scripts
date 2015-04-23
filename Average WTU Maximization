@@ -1,4 +1,7 @@
 
+## See associated wiki page for details.
+## Rename columns with total project budget "total" and indirect returns "indirect".
+
 data = read.csv("DataHere.csv")
 colnames(data)[19:20] = c("total","indirect")
 

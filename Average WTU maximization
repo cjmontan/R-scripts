@@ -1,0 +1,152 @@
+
+
+## WTUs are method some universities use to give a portion of their indirect returns from professors' research projects
+##    back to the professors. It offers a premium if professors use them to opt out of on-campus responsibilities,
+##    but only 1/2 value if they put the money towards professional development.
+
+## This script calculates optimal WTU bands based on average indirect returns for a given research project.
+## If a project's total budget falls inside a band, it receives the list number of WTUs, plus 1/2 value for partial WTUs.
+
+## This script subsidizes low return projects so all professors get at least 4 WTUs.
+##    Additional lines can be added / subtracted to subsidize more / less projects.
+
+## Returns data frame of: # WTUs, # projects between bands, minimum band, maximum band,
+##   =>  WTU costs, partial WTU costs, total costs, indirect returns, difference (indirect returns - total costs)
+##  Also includes totals of each category, and at what point professors start earning partial WTUs.
+
+
+data = read.csv("DataHere.csv")
+colnames(data)[18:20] = c("total","direct","indirect")
+
+
+## Plug in year of data used.
+
+WTU_partial_total = function(yr){
+  
+  ## Calculate the average indirect recovery rate to find all 2 WTU projects.
+  
+  temp = data
+  ind = as.numeric(colSums(subset(temp,(total > 0) & (year == yr), select=indirect)))
+  total = as.numeric(colSums(subset(temp,(total > 0) & (year == yr), select=total)))  
+  rate = ind/total
+  temp$avgind = (temp$total)*rate
+  temp$wtu2band = (temp$avgind)/3159
+  
+  ## Calculate the cost to subsidize the 1 WTU projects.
+  
+  WTU_subsidy_cost = 3159*as.numeric(nrow(subset(temp,(total > 0) & (wtu2band <= 1) & (year == yr), select=total)))
+  
+  ## Recalculate the average indirect recovery rate based on all 2 WTU projects being subsidized.
+  
+  ind = as.numeric(colSums(subset(temp,(year == yr), select=indirect)))
+  total = as.numeric(colSums(subset(temp,(wtu2band > 1) & (year == yr), select=total)))
+  ind = ind - WTU_subsidy_cost
+  rate = ind/total
+  
+  ## Calculate number of WTUs per project and costs.
+  
+  temp = data
+  temp$avgind = (temp$total)*rate
+  temp$wtu2band = (temp$avgind)/3159
+  temp$wholewtu = floor(temp$wtu2band)
+  temp$partialwtu = temp$wtu2band - temp$wholewtu
+  temp$wholewtucost = (temp$wholewtu)*3159
+  temp$partialwtucost = (temp$partialwtu)*1579.5
+  
+  ## Force the subsidies and limits on the data frame.
+  
+  for(i in 1:nrow(temp)){
+    if(temp$total[i] <= 0){
+      temp$wholewtu[i] = 0
+      temp$partialwtu[i] = 0
+      temp$wholewtucost[i] = 0
+      temp$partialwtucost[i] = 0
+    }
+    if(temp$wtu2band[i] <= 1 & temp$total[i] > 0){
+      temp$wholewtu[i] = 1
+      temp$partialwtu[i] = 0
+      temp$wholewtucost[i] = 3159
+      temp$partialwtucost[i] = 0
+    }
+    if(temp$wtu2band[i] > 1 & temp$wtu2band[i] <= 2){    ## Added so WTU 4 is easier to get into.
+      temp$wholewtu[i] = 2
+      temp$partialwtu[i] = 0
+      temp$wholewtucost[i] = 3159*2
+      temp$partialwtucost[i] = 0
+    }
+    #     if(temp$wtu2band[i] > 2 & temp$wtu2band[i] <= 3){    ## Added so WTU 6 is easier to get into.
+    #       temp$wholewtu[i] = 3
+    #       temp$partialwtu[i] = 0
+    #       temp$wholewtucost[i] = 3159*3
+    #       temp$partialwtucost[i] = 0
+    #     }
+    if(temp$wtu2band[i] >= 10){
+      temp$partialwtu[i] = 1
+      temp$wholewtu[i] = 9
+      temp$wholewtucost[i] = 9*3159
+      temp$partialwtucost[i] = 1579.5
+    }   
+  }
+  
+  ## Create a data frame with all relevent numbers.
+  
+  WTUs = c(2,4,6,8,10,12,14,16,18)
+  count = vector()
+  minband = vector()
+  maxband = vector()
+  WTUcosts = vector()
+  partialcosts = vector()
+  totalcosts = vector()
+  indirect = vector()
+  difference = vector()
+  
+  for(i in 1:9){
+    count[i] = as.numeric(nrow(subset(temp,(wholewtu == i) & (year == yr), select=wholewtu)))
+    if(count[i] != 0){
+      minband[i] = round(as.numeric(min(subset(temp,(wholewtu == i) & (year == yr), select=total))))
+      maxband[i] = round(as.numeric(max(subset(temp,(wholewtu == i) & (year == yr), select=total))))
+      WTUcosts[i] = as.numeric(colSums(subset(temp,(wholewtu == i) & (year == yr), select=wholewtucost)))
+      partialcosts[i] = as.numeric(colSums(subset(temp,(wholewtu == i) & (year == yr), select=partialwtucost)))
+      totalcosts[i] = WTUcosts[i] + partialcosts[i]
+      indirect[i] = as.numeric(colSums(subset(temp,(wholewtu == i) & (year == yr), select=indirect)))
+      difference[i] = indirect[i] - totalcosts[i]
+    } else {
+      minband[i] = 0
+      maxband[i] = 0
+      WTUcosts[i] = 0
+      partialcosts[i] = 0
+      totalcosts[i] = 0
+      indirect[i] = 0
+      difference[i] = 0
+    }
+  }
+  
+  df = data.frame(cbind(WTUs,count,minband,maxband,WTUcosts,partialcosts,totalcosts,indirect,difference))
+  vec = vector()
+  vec[1] = 0
+  vec[2] = as.numeric(colSums(subset(df,select=count)))
+  vec[3] = 0
+  vec[4] = 0
+  vec[5] = as.numeric(colSums(subset(df,select=WTUcosts)))
+  vec[6] = as.numeric(colSums(subset(df,select=partialcosts)))
+  vec[7] = as.numeric(colSums(subset(df,select=totalcosts)))
+  vec[8] = as.numeric(colSums(subset(df,select=indirect)))
+  vec[9] = as.numeric(colSums(subset(df,select=difference)))
+  
+  df = rbind(df,vec)
+  
+  for(i in 1:10){
+    for(j in 1:9){
+      df[i,j] = round(as.numeric(df[i,j]), digits=2)
+    }
+  }
+  
+  vec = numeric(9)
+  vec[1] = c("Min Partial:")
+  vec[3] = as.numeric(min(subset(temp,(partialwtu > 0) & (year == yr), select=total)))
+  
+  df = rbind(df,vec)
+  df[10,1] = c("Total:")
+  
+  return(df)
+}

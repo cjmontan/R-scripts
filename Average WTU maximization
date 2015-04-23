@@ -1,6 +1,6 @@
 
 data = read.csv("DataHere.csv")
-colnames(data)[18:20] = c("total","direct","indirect")
+colnames(data)[19:20] = c("total","indirect")
 
 ## Plug in year of data used.
 

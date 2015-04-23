@@ -1,23 +1,6 @@
 
-
-## WTUs are method some universities use to give a portion of their indirect returns from professors' research projects
-##    back to the professors. It offers a premium if professors use them to opt out of on-campus responsibilities,
-##    but only 1/2 value if they put the money towards professional development.
-
-## This script calculates optimal WTU bands based on average indirect returns for a given research project.
-## If a project's total budget falls inside a band, it receives the list number of WTUs, plus 1/2 value for partial WTUs.
-
-## This script subsidizes low return projects so all professors get at least 4 WTUs.
-##    Additional lines can be added / subtracted to subsidize more / less projects.
-
-## Returns data frame of: # WTUs, # projects between bands, minimum band, maximum band,
-##   =>  WTU costs, partial WTU costs, total costs, indirect returns, difference (indirect returns - total costs)
-##  Also includes totals of each category, and at what point professors start earning partial WTUs.
-
-
 data = read.csv("DataHere.csv")
 colnames(data)[18:20] = c("total","direct","indirect")
-
 
 ## Plug in year of data used.
 

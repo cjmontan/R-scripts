@@ -32,7 +32,7 @@ WTU_partial_total = function(yr){
   temp$avgind = (temp$total)*rate
   temp$wtu2band = (temp$avgind)/3159
   
-  ## Calculate the cost to subsidize the 1 WTU projects.
+  ## Calculate the cost to subsidize the 2 WTU projects.
   
   WTU_subsidy_cost = 3159*as.numeric(nrow(subset(temp,(total > 0) & (wtu2band <= 1) & (year == yr), select=total)))
   

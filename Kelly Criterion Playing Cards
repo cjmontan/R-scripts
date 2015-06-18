@@ -1,0 +1,78 @@
+
+## Creates blank data frames for the deck, bets and outcomes, and Monte Carlo simulations. 
+
+deck = matrix(nrow=26,ncol=2)
+colnames(deck) = c("Black","Red")
+for(i in 1:26){
+  deck[i,1] = "Black"
+  deck[i,2] = "Red"
+}
+
+bets = matrix(nrow=52,ncol=3)
+colnames(bets) = c("Bet Color","Bet Amount","Card Drawn")
+
+monte = matrix(nrow=10000,ncol=2)
+colnames(monte) = c("x52","x42")
+
+## Monte Carlo simulations.
+
+for(j in 1:10000){
+  pull = sample(deck, 52, replace = FALSE, prob = NULL)
+  x0 = 1000
+  
+  for(i in 1:52){
+    bets[i,3] = pull[i]
+    count_black = as.numeric(length(which(pull == "Black")))
+    count_red = as.numeric(length(which(pull == "Red")))
+    prob_black = count_black/(count_black+count_red)
+    prob_red = count_red/(count_black+count_red)
+    
+    if(prob_black == prob_red){
+      bets[i,1] = "No Bet"
+      bets[i,2] = 0
+      x0 = x0
+    }
+    
+    if(prob_black > prob_red){
+      f = 2*prob_black - 1
+      bets[i,1] = "Black"
+      bets[i,2] = f*x0
+      if(pull[i] == "Black"){
+        x0 = x0 + x0*f
+      } else {
+        x0 = x0 - x0*f
+      }
+    }
+    
+    if(prob_black < prob_red){
+      f = 2*prob_red - 1
+      bets[i,1] = "Red"
+      bets[i,2] = f*x0
+      if(pull[i] == "Red"){
+        x0 = x0 + x0*f
+      } else {
+        x0 = x0 - x0*f
+      }
+    }
+
+    if(i == 42){
+      monte[j,2] = x0
+    }
+    
+    pull[i] = "Drawn"
+    
+  }
+  
+  monte[j,1] = x0
+}
+
+## Histograms and quantiles (for draws 52 and 42).
+
+hist(monte[,1])
+hist(monte[,2])
+
+q_x52 = quantile(monte[,1], c(.01,.05,.1,.25,.5,.75,.90,.95,.99))
+q_x42 = quantile(monte[,2], c(.01,.05,.1,.25,.5,.75,.90,.95,.99))
+
+
+    

@@ -1,0 +1,97 @@
+
+## Contains 5 separate parts. Used to test different instrumental variables.
+## Variables should be in matrix form: as.matrix()
+## y = dependent variable, x = independent variables
+## exo = exogenous variables, endo = endogenous variables, iv = instrument estimator for endogenous variable.
+
+
+## OLS script. Returns beta coefficient, standard errors, and F stat.
+## Requires at least 2 explanatory variables.
+
+fun_ols = function(y,x){
+  n = nrow(y)
+  k = ncol(x)
+  b = solve(t(x) %*% x) %*% (t(x) %*% y)
+  e = y - (x %*% b)
+  var = (t(e) %*% (e)) / (n-k)
+  var = var[1,1]
+  var = var * solve(t(x) %*% x)
+  se = matrix(sqrt(diag(var)))
+  F_stat = t(b[2:k]) %*% solve(var[2:k,2:k]) %*% b[2:k] / (k-1)
+  output = list(b=b,b_SE=se,F_stat=F_stat)
+  return(output)
+}
+
+
+## Weak Instrument Test:
+## If F < 10 or 15, weak instrument.
+
+iv_ols = fun_ols(as.matrix(endo),cbind(exo,iv))
+iv_test = iv_ols$F_stat
+
+
+## 2SLS script. Returns beta coefficients and standard errors.
+
+fun_2sls = function(y,exo,endo,iv){
+  n = nrow(y)
+  x = cbind(exo,endo)
+  z = cbind(exo,iv)
+  xhat = z %*% solve(t(z) %*% z) %*% t(z) %*% x
+  b = solve(t(xhat) %*% xhat) %*% (t(xhat) %*% y)
+  e = y - x %*% b
+  var = (t(e) %*% e) / (n-k)
+  var = var[1,1]
+  var = var * solve(t(xhat) %*% xhat)
+  se = matrix(sqrt(diag(var)))
+  output = list(b=b,b_SE=se)
+  return(output)
+}
+
+
+## Durbin-Hausman-Wu specification test.
+
+fun_dhw = function(y,exo,endo,iv){
+  n = nrow(y)
+  x = cbind(exo,endo)
+  z = cbind(exo,iv)
+  xhat_wu = z %*% (solve(t(z) %*% z)) %*% (t(z) %*% endo)
+  x_wu = cbind(x,xhat_wu)
+  k_wu = ncol(x_wu)
+  b_wu = solve(t(x_wu) %*% x_wu) %*% (t(x_wu) %*% y)
+  e_wu = y - (x_wu %*% b_wu)
+  var_wu = (t(e_wu) %*% e_wu) / (n-k_wu)
+  var_wu = var_wu[1,1]
+  var_wu = var_wu * solve(t(x_wu) %*% x_wu)
+  se_wu = matrix(sqrt(diag(var_wu)))
+  t_wu = abs(b_wu[k_wu]/se_wu[k_wu])
+  return(t_wu)
+}
+
+
+## Error/iv correlation test.
+## If we cannot reject the null, each instrument is uncorrelated with the error.  This is good.
+
+fun_chi2 = function(y,exo,endo,iv){
+  n = nrow(y)
+  x = cbind(exo,endo)
+  z = cbind(exo,iv)
+  k = ncol(z)
+  r = ncol(iv)
+  xhat = z %*% solve(t(z) %*% z) %*% t(z) %*% x  ## (Pz) %*% x
+  b = solve(t(xhat) %*% xhat) %*% (t(xhat) %*% y)
+  e = y - x %*% b
+  var = (t(e) %*% e)/n    ## (e'e)/n    ## Might need (n-k)
+  var = var[1,1]
+  Eze = (t(e) %*% z)/n
+  m = Eze
+  varm = matrix(0,k,k)
+  for (i in 1:n){  
+    varm = varm + (e[i]^2) * (as.matrix(z[i,]) %*% z[i,])
+  }
+  varm = varm/(n^2)
+  t_m = m %*% solve(varm) %*% t(m)
+  cv = qchisq(.95, df=(r-1)) # Critical value
+  pv =  1-pchisq(t_m, df=(r-1)) # p value
+  output = list(critical_value = cv, p_value = pv)
+  return(output)
+}
